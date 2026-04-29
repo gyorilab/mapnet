@@ -3,7 +3,7 @@
 #  mesh: https://meshb.nlm.nih.gov/record/ui?ui=
 #  skos: http://www.w3.org/2004/02/skos/core#
 #  semapv: https://w3id.org/semapv/vocab/
-#mapping_set_id:  https://github.com/gyorilab/mapnet/blob/main/scripts/leonmap_mondo_mesh_classified/leonmap_mondo_mesh_right.sssom.tsv
+#mapping_set_id: https://github.com/gyorilab/mapnet/blob/main/scripts/leonmap_mondo_mesh_classified/leonmap_mondo_mesh_right.sssom.tsv
 #mapping_tool: leonmap
 subject_id	subject_label	predicate_id	object_id	object_label	confidence	mapping_justification	mapping_tool	comment
 mondo:0000001	disease	skos:exactMatch	mesh:D004194	Disease	1.0	semapv:LexicalMatching	leonmap	cosine=0.870747

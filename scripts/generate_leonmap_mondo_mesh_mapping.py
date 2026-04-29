@@ -22,11 +22,11 @@ import sys
 import urllib.request
 from collections import defaultdict
 from pathlib import Path
+import re
 
 import obonet
 import pandas as pd
 import polars as pl
-
 from lxml import etree
 from huggingface_hub import snapshot_download
 
@@ -51,6 +51,15 @@ HF_MODEL_REPO = "harshitsoni1903/sapbert-finetuned-semra"
 def _canonical(curie: str) -> str:
     ns, _, local = curie.partition(":")
     return f"{ns.lower()}:{local}"
+
+_ROMAN = {"i":"1","ii":"2","iii":"3","iv":"4","v":"5","vi":"6","vii":"7","viii":"8","ix":"9","x":"10","xi":"11","xii":"12"}
+
+def _norm_label(s: str) -> str:
+    s = (s or "").lower()
+    s = re.sub(r"'s\b", "", s)
+    tokens = re.findall(r"[a-z0-9]+", s)
+    tokens = [_ROMAN.get(t, t) for t in tokens]
+    return " ".join(sorted(tokens))
 
 def download_mondo_owl(data_dir: Path) -> Path:
     out = data_dir / "mondo.owl"
@@ -190,7 +199,10 @@ def _write_sssom(df: pl.DataFrame, out_path: Path, mapping_set_id: str) -> None:
         remarks = r.get("remarks", "")
         obj_id = r["predicted identifier"] if has_pred else r["target identifier"]
         obj_label = r.get("predicted name", r.get("target name", "")) if has_pred else r["target name"]
-        if "cosine=" in remarks:
+        if "predicate id" in df.columns and r.get("predicate id"):
+            predicate = r["predicate id"]
+            justification = "semapv:LexicalMatching" if (r.get("source name", "") or "").lower() == (obj_label or "").lower() else "semapv:SemanticSimilarity"
+        elif "cosine=" in remarks:
             justification = "semapv:LexicalMatching"
             predicate = "skos:exactMatch" if r["source name"].lower() == obj_label.lower() else "skos:broadMatch"
         else:
@@ -211,7 +223,7 @@ def _write_sssom(df: pl.DataFrame, out_path: Path, mapping_set_id: str) -> None:
         f.write("#  mesh: https://meshb.nlm.nih.gov/record/ui?ui=\n")
         f.write("#  skos: http://www.w3.org/2004/02/skos/core#\n")
         f.write("#  semapv: https://w3id.org/semapv/vocab/\n")
-        f.write(f"#mapping_set_id: {mapping_set_id}\n#mapping_tool: leonmap\n")
+        f.write(f"#mapping_set_id: https://github.com/gyorilab/mapnet/blob/main/scripts/leonmap_mondo_mesh_classified/{mapping_set_id}.sssom.tsv\n#mapping_tool: leonmap\n")
     pd.DataFrame(rows).to_csv(out_path, sep="\t", index=False, mode="a")
     print(f"Wrote {len(rows)} mappings -> {out_path}")
 
@@ -238,6 +250,127 @@ def _filter_novel(novel: pl.DataFrame, mondo_to_mesh: dict[str, set[str]], mesh_
     false_novel = pl.DataFrame(false_novel_rows) if false_novel_rows else pl.DataFrame()
     return truly_novel, false_novel
 
+def _load_owl_hierarchy(owl_path: str, id_prefixes: list[str] | None = None) -> dict:
+    """
+    Returns {curie: {"parents": [curies], "children": [curies]}}.
+    Walks rdfs:subClassOf, canonicalizes IRIs to match VDB id2pos keys.
+    """
+    from rdflib import Graph, URIRef, RDFS
+    from leonmap.utils import canonicalize_id, normalize_prefix
+
+    g = Graph()
+    g.parse(owl_path)
+
+    norm_prefixes = [normalize_prefix(p) for p in id_prefixes] if id_prefixes else None
+
+    def iri_to_curie(iri: str) -> str:
+        s = str(iri)
+        tail = s.split("#")[-1].rsplit("/", 1)[-1].strip()
+        if not tail:
+            return ""
+        if "id.nlm.nih.gov/mesh/" in s or "obo/mesh#" in s or "purl.obolibrary.org/obo/mesh" in s:
+            return canonicalize_id(f"mesh:{tail}")
+        return canonicalize_id(tail)
+
+    parents: dict[str, set] = {}
+    children: dict[str, set] = {}
+    for s, _, o in g.triples((None, RDFS.subClassOf, None)):
+        if not isinstance(s, URIRef) or not isinstance(o, URIRef):
+            continue
+        c, p = iri_to_curie(str(s)), iri_to_curie(str(o))
+        if not c or not p:
+            continue
+        if norm_prefixes and not (any(c.startswith(x) for x in norm_prefixes) and any(p.startswith(x) for x in norm_prefixes)):
+            continue
+        parents.setdefault(c, set()).add(p)
+        children.setdefault(p, set()).add(c)
+
+    all_ids = set(parents) | set(children)
+    return {cid: {"parents": sorted(parents.get(cid, set())),
+                  "children": sorted(children.get(cid, set()))} for cid in all_ids}
+
+
+def _classify_pair(src_id, src_label, tgt_id, tgt_label, src_db, tgt_db, src_hier, tgt_hier) -> str:
+    """Per-pair predicate classification: exact / narrow / broad / close."""
+    if src_label and tgt_label and _norm_label(src_label) == _norm_label(tgt_label):
+        return "skos:exactMatch"
+
+    def vec(db, cid):
+        pos = db.id2pos.get(cid)
+        return None if pos is None else db.reconstruct(pos)
+
+    sv, tv = vec(src_db, src_id), vec(tgt_db, tgt_id)
+    if sv is None or tv is None:
+        return "skos:closeMatch"
+
+    NEG = float("-inf")
+    def maxcos(qv, db, ids):
+        best = NEG
+        for cid in ids:
+            v = vec(db, cid)
+            if v is None:
+                continue
+            best = max(best, float(qv @ v))
+        return best
+
+    direct = float(sv @ tv)
+    tgt_p_ids = tgt_hier.get(tgt_id, {}).get("parents", [])
+    tgt_c_ids = tgt_hier.get(tgt_id, {}).get("children", [])
+    src_p_ids = src_hier.get(src_id, {}).get("parents", [])
+    src_c_ids = src_hier.get(src_id, {}).get("children", [])
+
+    scores = {
+        "direct":     direct,
+        "tgt_parent": maxcos(sv, tgt_db, tgt_p_ids),
+        "tgt_child":  maxcos(sv, tgt_db, tgt_c_ids),
+        "src_parent": maxcos(tv, src_db, src_p_ids),
+        "src_child":  maxcos(tv, src_db, src_c_ids),
+    }
+    winner = max(scores, key=scores.get)
+
+    if winner == "direct":
+        return "skos:exactMatch"
+    if winner in ("tgt_parent", "src_child"):
+        return "skos:narrowMatch"
+    if winner in ("tgt_child", "src_parent"):
+        return "skos:broadMatch"
+    return "skos:closeMatch"
+
+
+def reclassify_predicates(df: pl.DataFrame) -> pl.DataFrame:
+    """Adds 'predicate id' column to df by classifying each (src, tgt) pair."""
+    if len(df) == 0:
+        return df.with_columns(pl.lit("").alias("predicate id"))
+
+    from leonmap.config import BuildConfig, COLLECTIONS, MAPPINGS, resolve_path
+    from leonmap.utils import load_collection
+
+    cfg = BuildConfig()
+    study = MAPPINGS[STUDY]
+    src_name, tgt_name = study["src_collection"], study["tgt_collection"]
+    src_db = load_collection(cfg, src_name)
+    tgt_db = load_collection(cfg, tgt_name)
+
+    src_spec, tgt_spec = COLLECTIONS[src_name], COLLECTIONS[tgt_name]
+    src_owl = resolve_path(cfg.data_dir) / src_spec["owl_path"]
+    tgt_owl = resolve_path(cfg.data_dir) / tgt_spec["owl_path"]
+
+    print(f"  Loading hierarchy: {src_name} from {src_owl.name}")
+    src_hier = _load_owl_hierarchy(str(src_owl), src_spec.get("id_prefixes"))
+    print(f"  Loading hierarchy: {tgt_name} from {tgt_owl.name}")
+    tgt_hier = _load_owl_hierarchy(str(tgt_owl), tgt_spec.get("id_prefixes"))
+    print(f"  {len(src_hier)} {src_name} / {len(tgt_hier)} {tgt_name} concepts have hierarchy")
+
+    preds = []
+    for r in df.iter_rows(named=True):
+        preds.append(_classify_pair(
+            r["source identifier"], r["source name"],
+            r["target identifier"], r["target name"],
+            src_db, tgt_db, src_hier, tgt_hier,
+        ))
+    counts = {p: preds.count(p) for p in set(preds)}
+    print(f"  Predicates: {counts}")
+    return df.with_columns(pl.Series("predicate id", preds))
 
 def classify_mappings(predictions_df: pl.DataFrame, output_dir: Path, check_semra: bool = False, export_all: bool = True) -> None:
     evidence, mondo_to_mesh, mesh_to_mondo = _load_obo_xrefs()
@@ -303,6 +436,7 @@ def classify_mappings(predictions_df: pl.DataFrame, output_dir: Path, check_semr
         wrong = false_novel
     print(f"  Post-hoc: {len(truly_novel)} truly novel, {len(false_novel)} reclassified to wrong")
 
+    truly_novel = reclassify_predicates(truly_novel)
     _write_sssom(truly_novel, output_dir / f"{base}_novel.sssom.tsv", f"{base}_novel")
     if export_all:
         _write_sssom(right, output_dir / f"{base}_right.sssom.tsv", f"{base}_right")

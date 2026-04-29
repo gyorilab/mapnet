@@ -3,7 +3,7 @@
 #  mesh: https://meshb.nlm.nih.gov/record/ui?ui=
 #  skos: http://www.w3.org/2004/02/skos/core#
 #  semapv: https://w3id.org/semapv/vocab/
-#mapping_set_id:  https://github.com/gyorilab/mapnet/blob/main/scripts/leonmap_mondo_mesh_classified/leonmap_mondo_mesh_wrong.sssom.tsv
+#mapping_set_id: https://github.com/gyorilab/mapnet/blob/main/scripts/leonmap_mondo_mesh_classified/leonmap_mondo_mesh_wrong.sssom.tsv
 #mapping_tool: leonmap
 subject_id	subject_label	predicate_id	object_id	object_label	confidence	mapping_justification	mapping_tool	comment
 mondo:0000127	geleophysic dysplasia	skos:broadMatch	mesh:C535662	Acromicric dysplasia	1.0	semapv:LexicalMatching	leonmap	cosine=0.740681; known_target=mesh:C537677
@@ -42,7 +42,7 @@ mondo:0005300	chronic kidney disease	skos:broadMatch	mesh:D051436	Renal Insuffic
 mondo:0005365	hearing loss disorder	skos:exactMatch	mesh:D006312	Hearing Loss, Bilateral	0.90068245	semapv:SemanticSimilarity	leonmap	known_target=mesh:D034381
 mondo:0005462	primitive neuroectodermal tumor	skos:broadMatch	mesh:D018242	Neuroectodermal Tumors, Primitive	1.0	semapv:LexicalMatching	leonmap	cosine=0.876565; known_target=mesh:D017599
 mondo:0005502	dengue disease	skos:exactMatch	mesh:D019595	Severe Dengue	0.93308771	semapv:SemanticSimilarity	leonmap	known_target=mesh:D003715
-mondo:0005582	binge eating disorder	skos:broadMatch	mesh:D056912	Binge-Eating Disorder	1.0	semapv:LexicalMatching	leonmap	cosine=0.859058; known_target=mesh:D052018, mesh:D002032
+mondo:0005582	binge eating disorder	skos:broadMatch	mesh:D056912	Binge-Eating Disorder	1.0	semapv:LexicalMatching	leonmap	cosine=0.859058; known_target=mesh:D002032, mesh:D052018
 mondo:0005656	Ascaridida infectious disease	skos:exactMatch	mesh:D001198	Ascaridiasis	0.9191649	semapv:SemanticSimilarity	leonmap	known_target=mesh:D017191
 mondo:0005696	central nervous system tuberculosis	skos:broadMatch	mesh:D020306	Tuberculosis, Central Nervous System	1.0	semapv:LexicalMatching	leonmap	cosine=0.828467; known_target=mesh:D016862
 mondo:0005864	muscle cancer	skos:broadMatch	mesh:D019042	Muscle Neoplasms	1.0	semapv:LexicalMatching	leonmap	cosine=0.953254; known_target=mesh:D009217
