@@ -3,7 +3,7 @@
 #  mesh: https://meshb.nlm.nih.gov/record/ui?ui=
 #  skos: http://www.w3.org/2004/02/skos/core#
 #  semapv: https://w3id.org/semapv/vocab/
-#mapping_set_id: https://github.com/gyorilab/mapnet/blob/main/scripts/gilda_mondo_mesh_predictions.sssom.tsv
+#mapping_set_id: https://github.com/gyorilab/mapnet/blob/main/scripts/aggregated_mondo_mesh_predictions.sssom.tsv
 #mapping_tool: Gilda, logmap, LeonMap
 subject_id	subject_label	predicate_id	object_id	object_label	mapping_justification	confidence	mapping_tool	comment
 mondo:0800378	17,20-lyase deficiency, isolated	skos:exactMatch	mesh:C567076	17,20-Lyase Deficiency, Isolated	semapv:LexicalMatching	1.0	gilda	

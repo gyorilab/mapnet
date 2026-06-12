@@ -1,12 +1,15 @@
 """
-Aggregate predictions of mappings between MONDO and MesH from Gilda, LeonMap and LogMap 
+Aggregate predictions of mappings between MONDO and MesH from Gilda, LeonMap and LogMap
 """
+
 import polars as pl
 import os
 
-if __name__ == "__main__": 
+if __name__ == "__main__":
     gilda_maps = pl.read_csv(
-        "scripts/gilda_mondo_mesh_predictions.sssom.tsv", separator="\t", comment_prefix="#"
+        "scripts/gilda_mondo_mesh_predictions.sssom.tsv",
+        separator="\t",
+        comment_prefix="#",
     )
     logmap_maps = pl.read_csv(
         "scripts/logmap_mondo_mesh_predictions.sssom.tsv",
@@ -37,7 +40,7 @@ if __name__ == "__main__":
         f.write("#  skos: http://www.w3.org/2004/02/skos/core#\n")
         f.write("#  semapv: https://w3id.org/semapv/vocab/\n")
         f.write(
-            "#mapping_set_id: https://github.com/gyorilab/mapnet/blob/main/scripts/gilda_mondo_mesh_predictions.sssom.tsv\n"
+            "#mapping_set_id: https://github.com/gyorilab/mapnet/blob/main/scripts/aggregated_mondo_mesh_predictions.sssom.tsv\n"
         )
         f.write("#mapping_tool: Gilda, logmap, LeonMap\n")
         mapping_stack.write_csv(f, separator="\t")
