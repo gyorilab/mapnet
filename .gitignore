@@ -10,3 +10,6 @@ dev
 
 ## Output
 output
+
+.DS_Store
+scripts/.DS_Store
