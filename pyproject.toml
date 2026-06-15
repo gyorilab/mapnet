@@ -4,7 +4,7 @@ build-backend = "hatchling.build"
 
 [project]
 name = "mapnet"
-version = "2025.0.0"
+dynamic = ["version"]
 dependencies = [
     "jpype1",
     "polars",
@@ -29,3 +29,6 @@ license-files = ["LICENSE"]
 Homepage = "https://github.com/gyorilab/mapnet"
 Repository = "https://github.com/gyorilab/mapnet.git"
 "Bug Tracker" = "https://github.com/gyorilab/mapnet/issues"
+
+[tool.setuptools.dynamic]
+version = {attr = "mapnet.__version__"}
