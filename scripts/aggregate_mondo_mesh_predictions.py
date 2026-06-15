@@ -15,7 +15,7 @@ if __name__ == "__main__":
         "scripts/logmap_mondo_mesh_predictions.sssom.tsv",
         separator="\t",
         comment_prefix="#",
-    )
+    ).drop('comment')
     leonmap_maps = pl.read_csv(
         "scripts/leonmap_mondo_mesh_classified/leonmap_mondo_mesh_novel.sssom.tsv",
         separator="\t",
