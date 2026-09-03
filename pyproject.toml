@@ -1,34 +1,43 @@
+[project]
+name = "mapnet"
+version = "2.0.0.dev0"
+description = "An aggregator for biomedical ontology mapping tools"
+readme = "README.md"
+requires-python = ">=3.11"
+dependencies = [
+    "bioregistry>=0.14.0",
+    "curies>=0.10.0",
+    "pydantic>=2.0",
+    "pystow>=0.5.0",
+    "sssom-pydantic>=0.6.1",
+]
+
+[project.scripts]
+mapnet = "mapnet.cli:main"
+
 [build-system]
 requires = ["hatchling"]
 build-backend = "hatchling.build"
 
-[project]
-name = "mapnet"
-dynamic = ["version"]
-dependencies = [
-    "jpype1",
-    "polars",
-    "torch",
-    "torchvision",
-    "torchaudio",
-    "deeponto",
-    "biomappings",
-    "bioregistry",
-    "black",
-    "indra",
-    "pyobo",
-    "transformers[torch]==4.40.0"
-]
-requires-python = ">=3.10,<3.11"
+[tool.hatch.build.targets.wheel]
+packages = ["mapnet", "adapters"]
 
-description = "Algorithms for semantic mappings between different ontologies."
-readme = "README.md"
-license-files = ["LICENSE"]
+[dependency-groups]
+dev = ["ruff>=0.6", "mypy>=1.11", "pre-commit>=3.8"]
 
-[project.urls]
-Homepage = "https://github.com/gyorilab/mapnet"
-Repository = "https://github.com/gyorilab/mapnet.git"
-"Bug Tracker" = "https://github.com/gyorilab/mapnet/issues"
+[tool.ruff]
+line-length = 88
+extend-exclude = ["*.md"]
 
-[tool.setuptools.dynamic]
-version = {attr = "mapnet.__version__"}
+[tool.ruff.format]
+skip-magic-trailing-comma = true
+
+[tool.ruff.lint]
+select = ["E", "F", "I", "UP", "B", "SIM"]
+
+[tool.ruff.lint.isort]
+split-on-trailing-comma = false
+
+[tool.mypy]
+python_version = "3.11"
+ignore_missing_imports = true
